@@ -7,6 +7,8 @@
 
   Sebastian Sardina - January 1999 - ssardina@gmail.com
 ---------------------------------------------------------------------------*/
+:- ensure_loaded(utils).
+
 :- multifile
   restore_situation/3,
   primitive_action/1.
