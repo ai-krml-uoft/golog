@@ -7,8 +7,9 @@
 
   Sebastian Sardina - January 1999 - ssardina@gmail.com
 ---------------------------------------------------------------------------*/
-:- multifile restore_situation/3.
-:- multifile primitive_action/1.
+:- multifile
+  restore_situation/3,
+  primitive_action/1.
 
 /*-------------------------------------------------------------------------
   PREDICATE: Definition of operators
@@ -76,8 +77,6 @@ holds(A, S) :- restore_situation(A, S, F), !, F.
 holds(A, S) :- \+ restore_situation(A, S, _), is_atom(A), A.
 
 
-
-
 % A is a propositional atom, not a complex formula
 is_atom(A) :- \+ is_complex(A).
 
@@ -92,9 +91,11 @@ is_complex(all(_V, _W)).
 
 
 % restore S as last argument of term A
-% e.g., if A = poss(Action), then A2 = poss(Action, S)
-restore_situation(A, S, A2) :-
-  is_atom(A), A =.. [F|L], append(L, [S], L2), A2 =.. [F|L2].
+restore_situation(poss(A), S, poss(A, S)).
+
+% this will not work, as it will also do replacement say on equality terms
+% restore_situation(A, S, A2) :-
+%   is_atom(A), A =.. [F|L], append(L, [S], L2), A2 =.. [F|L2].
 
 % is the situation executable -- all actions have poss true
 executable(s0).

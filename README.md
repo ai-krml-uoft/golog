@@ -9,10 +9,7 @@ The code here has been ported to [SWI-Prolog](https://www.swi-prolog.org/).
 
 ## Golog
 
-File [golog.pl](golog.pl) contains the vanilla Golog as per the book but ported to SWI-Prolog. It only contains two simplifications:
-
-- predicate `restore_situation/3` to restore the situation term as the last argument in fluents is now domain independent, so it does not need to be specified per fluent.
-- predicate `is_atom/1` has been refactored to be based on `is_complex/1`.
+File [golog.pl](golog.pl) contains the vanilla Golog as per the book but ported to SWI-Prolog.
 
 To test the interpreter, we can run it on the simple elevator example as follows:
 
@@ -27,5 +24,9 @@ For built-in help, use ?- help(Topic). or ?- apropos(Word).
 
 ?- do(control, s0, S).
 S = do(open, do(down(0), do(close, do(open, do(turnoff(5), do(up(5), do(close, do(open, do(turnoff(...), do(..., ...)))))))))) [write]
-S = do(open, do(down(0), do(close, do(open, do(turnoff(5), do(up(5), do(close, do(open, do(turnoff(3), do(down(3), s0)))))))))) .
+S = do(open, do(down(0), do(close, do(open, do(turnoff(5), do(up(5), do(close, do(open, do(turnoff(3), do(down(3), s0)))))))))) ;
+S = do(open, do(down(0), do(close, do(open, do(turnoff(3), do(down(3), do(close, do(open, do(turnoff(5), do(up(5), s0)))))))))) ;
+S = do(open, do(down(0), do(close, do(open, do(turnoff(5), do(up(5), do(close, do(open, do(turnoff(3), do(down(3), s0)))))))))) ;
+S = do(open, do(down(0), do(close, do(open, do(turnoff(3), do(down(3), do(close, do(open, do(turnoff(5), do(up(5), s0)))))))))) ;
+false.
 ```

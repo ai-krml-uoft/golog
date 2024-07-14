@@ -41,14 +41,13 @@ currentFloor(4, s0).
 nextFloor(N, S) :- on(N, S).
 
 % Restore suppressed situation arguments.
-
-restoreSitArg(on(N), S, on(N, S)).
-restoreSitArg(nextFloor(N), S, nextFloor(N, S)).
-restoreSitArg(currentFloor(M), S, currentFloor(M, S)).
+restore_situation(on(N), S, on(N, S)).
+restore_situation(nextFloor(N), S, nextFloor(N, S)).
+restore_situation(currentFloor(M), S, currentFloor(M, S)).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Definitions of Complex Control Actions
+% Definitions of Complex Control Actions - PROGRAMS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 proc(goFloor(N), ?(currentFloor(N)) # up(N) # down(N)).
 proc(serve(N), goFloor(N) : turnoff(N) : open : close).
