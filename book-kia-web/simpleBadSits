@@ -1,0 +1,41 @@
+
+    %  Bad Situations for a Simple Blocks World
+
+%  Don't create a bad tower by a move action.
+
+badSituation(do(move(X,Y),S)) :- not goodTower(X,do(move(X,Y),S)).
+
+%  Don't move anything from a good tower to the table.
+
+badSituation(do(moveToTable(X),S)) :- goodTower(X,S).
+
+/*  Opportunistic rule: If an action can create a good tower, don't
+    do a bad-tower-creating moveToTable action.  */
+
+badSituation(do(moveToTable(X),S)) :-
+                            not goodTower(X,do(moveToTable(X),S)),
+                            existsActionThatCreatesGoodTower(S).
+
+existsActionThatCreatesGoodTower(S) :-
+                       (A = move(Y,X) ; A = moveToTable(Y)),
+                       poss(A,S), goodTower(Y,do(A,S)).
+
+%  Canonical ordering of good-tower producing actions.
+
+badSituation(do(move(X1,Y1),do(move(X2,Y2),S))) :- X1 @< X2,
+                        poss(move(X1,Y1),S),
+                        poss(move(X2,Y2),do(move(X1,Y1),S)).
+badSituation(do(move(X1,Y1),do(moveToTable(X2),S))) :- X1 @< X2,
+                        poss(move(X1,Y1),S),
+                        poss(moveToTable(X2),do(move(X1,Y1),S)),
+                        goodTower(X2,do(moveToTable(X2),S)).
+badSituation(do(moveToTable(X1),do(move(X2,Y2),S))) :- X1 @< X2,
+                        poss(moveToTable(X1),S),
+                        poss(move(X2,Y2),do(moveToTable(X1),S)),
+                        goodTower(X1,do(moveToTable(X1),S)).
+badSituation(do(moveToTable(X1),do(moveToTable(X2),S))) :- X1 @< X2,
+                        poss(moveToTable(X1),S),
+                        poss(moveToTable(X2),do(moveToTable(X1),S)),
+                        goodTower(X1,do(moveToTable(X1),S)),
+                        goodTower(X2,do(moveToTable(X2),S)).
+

@@ -1,0 +1,80 @@
+
+
+    %  Prolog Clauses for a Blocks World with Concurrent Actions
+
+/*  Poss for concurrent actions. These clauses are independent of
+    the blocks world.  */
+
+poss(C,S) :- concurrentAction(C),
+
+    /* First determine all good primitive actions that are
+       possible in situation S. */
+
+             setof(A,
+                   (primitive_action(A), poss(A,S), not badAction(A,S)),
+                   GoodActions),
+
+ /* Next, determine a maximal subset of these whose actions do not
+    conflict with one another.  */
+
+             maxCompatibleSubset(GoodActions,Max,S),
+
+ % Finally, any subset of these is a possible concurrent action.
+
+             subset(C,Max).
+
+maxCompatibleSubset(C,Max,S) :- getTwoMembers(C,A,B),
+                  conflict(A,B,S), (delete(A,C,D) ; delete(B,C,D)),
+                  maxCompatibleSubset(D,Max,S), !.
+maxCompatibleSubset(C,C,S).
+
+getTwoMembers([A | L],A,B) :- member(B,L).
+getTwoMembers([X | L],A,B) :- getTwoMembers(L,A,B).
+
+/*****************************************************************/
+
+            %   Blocks World Specific Clauses.
+
+%   Successor State Axioms.
+
+clear(X,do(C,S)) :- (member(move(Y,Z),C) ; member(moveToTable(Y),C)),
+                    on(Y,X,S) ;
+                    clear(X,S), not member(move(Y,X),C).
+on(X,Y,do(C,S)) :- member(move(X,Y),C) ;
+                   on(X,Y,S), not member(moveToTable(X),C),
+                              not member(move(X,Z),C).
+ontable(X,do(C,S)) :- member(moveToTable(X),C) ;
+                      ontable(X,S), not member(move(X,Y),C).
+
+%   Action Precondition Axioms
+
+poss(move(X,Y),S) :- clear(X,S), clear(Y,S), not X = Y.
+poss(moveToTable(X),S) :- clear(X,S), not ontable(X,S).
+
+conflict(move(X,Y),move(Y,Z),S).  conflict(move(Y,Z),move(X,Y),S).
+conflict(move(X,Y),moveToTable(X),S). conflict(moveToTable(X),move(X,Y),S).
+conflict(move(X,Y),moveToTable(Y),S). conflict(moveToTable(Y),move(X,Y),S).
+conflict(move(X,Y),move(X,Z),S) :- not Y = Z.
+conflict(move(X,Y),move(Z,Y),S) :- not X = Z.
+
+%   Bad actions.
+
+badAction(move(X,Y),S) :- not goodTower(X,do([move(X,Y)],S)).
+badAction(moveToTable(X),S) :- goodTower(X,S).
+
+%  Bad situation. C doesn't include all good-tower-producing actions.
+
+badSituation(do(C,S)) :- omitsGoodTowerProducingAction(C,S).
+
+omitsGoodTowerProducingAction(C,S) :-
+              goodTowerProducingAction(A,S), not member(A,C).
+
+goodTowerProducingAction(A,S):- blockMoved(A,X),
+                                goodTower(X,do([A],S)), poss(A,S).
+
+blockMoved(move(X,Y),X).  blockMoved(moveToTable(X),X).
+
+%   Primitive Action Declarations.
+
+primitive_action(move(X,Y)).    primitive_action(moveToTable(X)).
+

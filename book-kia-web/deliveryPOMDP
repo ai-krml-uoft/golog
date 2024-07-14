@@ -1,0 +1,98 @@
+
+
+   %   Clauses for the Delivery Robot POMDP. 
+   %   Includes uncertainty in the initial situation by representing the 
+   %   four initial databases of Section 12.4.
+
+choice(senseGo(L),C) :- location(L1), C = observeLoc(L1).
+choice(senseGiveCoffee(P),C) :- C = observeGiveCoffeeS(P) ;
+               C = observeGiveCoffeeF(P) ; C = observeZipAboutCoffee(P).
+
+poss(observeLoc(L),S) :- loc(Loc,S),
+                         (L = blackHole, Loc = blackHole ;
+                          Loc = L, not L = blackHole ;
+                          not (Loc = blackHole ; L = Loc ; L = blackHole)).
+poss(observeGiveCoffeeS(P),S) :- S = do(giveCoffeeS(P),S1),
+                                 loc(L,S), not dark(L).
+poss(observeGiveCoffeeF(P),S) :- S = do(giveCoffeeF(P),S1),
+                                 loc(L,S), not dark(L).
+poss(observeZipAboutCoffee(P),S) :- loc(L,S), dark(L).
+
+prob0(observeLoc(L),senseGo(L1),S,Pr) :- loc(Loc,S),
+                      (L = blackHole, Loc = blackHole, Pr = 1.0 ;
+                       Loc = L, not L = blackHole, Pr = 0.95 ;
+                       not Loc = blackHole, not L = Loc, not L = blackHole,
+                       numberOfRooms(N), Pr is 0.05/(N-1) ).
+prob0(observeGiveCoffeeS(P),senseGiveCoffee(P),S,Pr) :- Pr = 1.0 .
+prob0(observeGiveCoffeeF(P),senseGiveCoffee(P),S,Pr) :- Pr = 1.0 .
+prob0(observeZipAboutCoffee(P),senseGiveCoffee(P),S,Pr) :- Pr = 1.0 .
+
+dark(L) :- L = office(sue) ; L = office(sam).
+numberOfRooms(N) :- findall(P,person(P),Ps), length(Ps,M), N is M + 1.
+location(L) :- L = mr ; L = blackHole ; person(P), L = office(P).
+
+outcomeIs(O,S) :- S = do(O,S1).
+restoreSitArg(outcomeIs(O),S,outcomeIs(O,S)).
+
+% Rewards and costs for observations.
+
+cost(observeGiveCoffeeS(P),S,C) :- C = 0.
+cost(observeGiveCoffeeF(P),S,C) :- C = 0.
+cost(observeZipAboutCoffee(P),S,C) :- C = 0.
+cost(observeLoc(L),S,C) :- C = 0.
+reward(observeGiveCoffeeS(P),S,R) :- R = 0.
+reward(observeGiveCoffeeF(P),S,R) :- R = 0.
+reward(observeZipAboutCoffee(P),S,R) :- R = 0.
+reward(observeLoc(L),S,R) :- R = 0.
+
+% Uncertainty in the initial situation.
+% The four initial databases of Section 12.4.
+
+          % Delivery robot with uncertain initial database.
+
+init(S) :- S = s01 ; S = s02 ; S = s03 ; S = s04.
+
+% Initial Database #1
+
+loc(mr,s01).  mailPresent(P,s01) :- P = pat ; P = sue.
+initProb(s01,P) :- P is 0.4 * 0.9 .  coffeeRequested(P,s01).
+
+% Initial Database #2
+
+loc(mr,s02).  mailPresent(P,s02) :- P = sue.
+initProb(s02,P) :- P is 0.4 * 0.1 .  coffeeRequested(P,s02).
+
+% Initial Database #3
+
+loc(office(sue),s03).  mailPresent(P,s03) :- P = pat ; P = sue.
+initProb(s03,P) :- P is 0.6 * 0.9 .  coffeeRequested(P,s03).
+
+% Initial Database #4
+
+loc(office(sue),s04).  mailPresent(P,s04) :- P = sue.
+initProb(s04,P) :- P is 0.6 * 0.1 .  coffeeRequested(P,s04).
+
+% Value is 0 for all initial databases.
+
+initValue(S,0.0) :- init(S).
+
+% Rewards and costs for ordinary stochastic actions.
+
+reward(puMail,S,R) :- R = 20.
+reward(giveMail(P),S,R) :- P = ann, R = 80 ; P = alf, R = 100 ;
+                               person(P), not P = ann, not P = alf, R = 50.
+reward(giveCoffeeS(P),S,R) :- P = ann, R = 60 ; P = alf, R = 90 ;
+                              person(P), not P = ann, not P = alf, R = 50.
+reward(giveCoffeeF(P),S,R) :- P = ann, R = -40 ; P = alf, R = -60 ;
+                              person(P), not P = ann, not P = alf, R = -30.
+reward(endUpAt(L),S,R) :- R = 25.
+reward(getLost(L),S,R) :- R = -100.
+cost(puMail,S,C) :- C = 0.0 .
+cost(giveMail(P),S,C) :- C = 0.0 .
+cost(giveCoffeeS(P),S,C) :- C = 0.0 .
+cost(giveCoffeeF(P),S,C) :- C = 0.0 .
+cost(endUpAt(L),S,C) :- loc(L0,S), dist(L0,L,D), C is 0.25 * D.
+cost(getLost(L),S,C) :- loc(L0,S), dist(L0,L,D), C is 0.50 * D.
+
+person(P) :- P = pat ; P = sue ; P = alf ; P = sam ; P = ann ; P = bob.
+

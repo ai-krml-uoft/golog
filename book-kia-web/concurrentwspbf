@@ -1,0 +1,47 @@
+      %   A concurrent breadth-first planner.
+
+proc(wspbf(N), ?(initializeSitCount) : ?(initializeCPU) : plans(0,N)).
+
+proc(plans(M,N),
+          ?(M =< N) :
+          (actionSequence(M) : ?(goal) : 
+           ?(writeSuccessInfo) : ?(prettyPrintSituation) # 
+           pi(m1, ?(m1 is M + 1) : 
+           ?(info(m1)) : plans(m1,N)))).
+
+proc(actionSequence(N),
+        ?(N = 0) #
+        ?(N > 0) : pi(c, ?(concurrentAction(c)) : c) : ?(-badSituation) :
+        ?(incrementSitCount) :
+        pi(n1, ?(n1 is N - 1) : actionSequence(n1))).
+
+info(N) :- write('Starting level '), write(N), 
+           writeCpuInfo, writeGoodSitsInfo, nl.
+
+initializeSitCount :- setval(sitCount,0).
+
+initializeCPU :- cputime(T), setval(cpu,T). 
+
+incrementSitCount :- incval(sitCount).
+
+writeCpuInfo :- cputime(T),  write('  CPU time (sec): '),
+                getval(cpu,T2), T1 is T - T2, write(T1).
+
+writeGoodSitsInfo :-  write('  Good situations: '), 
+                      getval(sitCount,C), write(C).
+
+writeSuccessInfo :- nl, write('Success.'),
+                    writeCpuInfo, writeGoodSitsInfo, nl.
+
+prettyPrintSituation(S) :- makeActionList(S,Alist), nl, write(Alist), nl.
+
+makeActionList(s0,[]).
+makeActionList(do(A,S), L) :- makeActionList(S,L1), append(L1, [A], L).
+
+restoreSitArg(prettyPrintSituation,S,prettyPrintSituation(S)).
+restoreSitArg(badSituation,S,badSituation(S)).
+restoreSitArg(goal,S,goal(S)).
+
+planbf(N) :- do(wspbf(N),s0,S), askForMore.
+
+askForMore :- write('More? '), read(n).

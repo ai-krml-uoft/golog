@@ -1,0 +1,15 @@
+
+
+% Expected Value for StGolog Programs and Uncertainty in the Initial Situation
+
+eValue(Prog,Val) :- findall(VV,
+                            S0^S^P0^P^V^(init(S0), initProb(S0,P0),
+                                         stDo(Prog : nil,P,S0,S),
+                                         value(S,V), VV is P0 * P * V),
+                            Vals),
+                    addNumbers(Vals,Val).
+
+value(S0,V) :- init(S0), initValue(S0,V).
+value(do(A,S),V) :- value(S,VS), cost(A,S,C), reward(A,S,R),
+                    V is VS + R - C.
+

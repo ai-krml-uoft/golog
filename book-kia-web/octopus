@@ -1,0 +1,68 @@
+
+
+                 %   OCTOPUS Axioms in Prolog
+
+%  Action Precondition Axioms.
+
+poss(startMove(H,X,Y,T,T1),S) :- start(S,T), clear(X,S), clear(Y,S),
+       not X = Y, not reserved(X,S), not reserved(Y,S), hand(H), 
+       not handInUse(H,S), moveDuration(H,X,Y,S,D), T1 is T + D.
+
+poss(startMoveToTable(H,X,T,T1),S) :- start(S,T), clear(X,S),
+        not ontable(X,S), not reserved(X,S), hand(H), not handInUse(H,S),
+        moveToTableDuration(H,X,S,D), T1 is T + D.
+
+poss(endMove(H,X,Y,T,T1),S) :- moving(H,X,Y,T,T1,S),
+                           precedesActiveProcessTerminationTimes(T1,S).
+
+poss(endMoveToTable(H,X,T,T1),S) :- movingToTable(H,X,T,T1,S),
+                           precedesActiveProcessTerminationTimes(T1,S).
+
+%  Successor State Axioms.
+
+clear(X,do(A,S)) :- (A = startMove(H,Y,Z,T,T1) ;
+                      A = startMoveToTable(H,Y,T,T1)), on(Y,X,S) ;
+                    A = endMove(H,X,Z,T,T1) ;
+                    A = endMoveToTable(H,X,T,T1) ;
+                    clear(X,S), not A = endMove(H,Y,X,T,T1),
+                    not A = startMove(H,X,Y,T,T1),
+                    not A = startMoveToTable(H,X,T,T1).
+
+on(X,Y,do(A,S)) :- A = endMove(H,X,Y,T,T1) ;
+                   on(X,Y,S), not A = startMoveToTable(H,X,T,T1),
+                   not A = startMove(H,X,Z,T,T1).
+
+ontable(X,do(A,S)) :- A = endMoveToTable(H,X,T,T1) ;
+                      ontable(X,S), not A = startMove(H,X,Y,T,T1).
+
+moving(H,X,Y,T,T1,do(A,S)) :- A = startMove(H,X,Y,T,T1) ;
+                moving(H,X,Y,T,T1,S), not A = endMove(H,X,Y,T,T1).
+
+movingToTable(H,X,T,T1,do(A,S)) :- A = startMoveToTable(H,X,T,T1) ;
+         movingToTable(H,X,T,T1,S), not A = endMoveToTable(H,X,T,T1).
+
+%  Abbreviations.
+
+handInUse(H,S) :- moving(H,X,Y,T,T1,S), ! ; movingToTable(H,X,T,T1,S).
+
+reserved(Y,S) :- moving(H,X,Y,T,T1,S).
+
+precedesActiveProcessTerminationTimes(T,S) :-
+      not ((moving(H,X,Y,T1,T2,S) ; movingToTable(H,X,T1,T2,S)), T > T2).
+
+%  Primitive Action Declarations.
+
+primitive_action(startMove(H,X,Y,T,T1)).
+primitive_action(endMove(H,X,Y,T,T1)).
+primitive_action(startMoveToTable(H,X,T,T1)).
+primitive_action(endMoveToTable(H,X,T,T1)).
+
+%  Action Start Times.
+
+time(startMove(H,X,Y,T,T1),T).       time(endMove(H,X,Y,T,T1),T1).
+time(startMoveToTable(H,X,T,T1),T).  time(endMoveToTable(H,X,T,T1),T1).
+
+%  Situation Start Time.
+
+start(do(A,S),T) :- time(A,T).
+

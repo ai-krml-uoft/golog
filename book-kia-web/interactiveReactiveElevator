@@ -1,0 +1,95 @@
+
+   %  A Reactive Elevator Controller with Interactively
+   %              Generated Exogenous Actions
+
+% Primitive action declarations.
+
+primitive_action(goUp).               primitive_action(goDown).
+primitive_action(resetButton(N)).     primitive_action(toggleFan).
+primitive_action(ringAlarm).          primitive_action(wait).
+primitive_action(startFire).          primitive_action(endFire).
+primitive_action(callElevator(N)).    primitive_action(resetAlarm).
+primitive_action(changeTemp).
+
+% Golog Procedures
+
+proc(control, wait : while(some(n,buttonOn(n)),
+                           pi(n, ?(buttonOn(n)) : serveFloor(n)))).
+
+proc(serveFloor(N), while(-atFloor(N), if(aboveFloor(N), goDown, goUp)) :
+                    resetButton(N)).
+
+proc(rules, ?(fire & -alarmOn) : ringAlarm : while(alarmOn,wait) #
+            ?(tooHot & -fan) : toggleFan #
+            ?(tooCold & fan) : toggleFan #
+            ?(-(fire & -alarmOn v tooHot & -fan v tooCold & fan))).
+
+% exoTransition under the assumption that at most one exogenous action
+% can occur after each control action.
+
+exoTransition(S1,S2) :- requestExogenousAction(E,S1),
+                        (E = nil, S2 = S1 ;
+                         not E = nil, S2 = do(E,S1)).
+
+requestExogenousAction(E,S) :-
+           write("Enter an exogenous action, or nil."), read(E1),
+  %  IF exogenous action is nil, or is possible THEN no problem
+               ((E1 = nil ; poss(E1,S)) -> E = E1 ;
+  %  ELSE print error message, and try again.
+               write(">> Action not possible. Try again."), nl,
+               requestExogenousAction(E,S)).
+
+% Preconditions for Primitive Actions
+
+poss(goUp,S) :- atFloor(N,S), topFloor(T), N < T.
+poss(goDown,S) :- atFloor(N,S), firstFloor(F), F < N.
+poss(resetButton(N),S) :- atFloor(N,S), buttonOn(N,S).
+poss(toggleFan,S).
+poss(ringAlarm,S) :- fire(S).
+poss(startFire,S) :- not fire(S).
+poss(endFire,S) :- fire(S).
+poss(callElevator(N),S) :- not buttonOn(N,S).
+poss(changeTemp,S).
+poss(resetAlarm,S) :- alarmOn(S).
+poss(wait,S).
+
+% Successor State Axioms for Primitive Fluents.
+
+buttonOn(N,do(A,S)) :- A = callElevator(N) ;
+                       buttonOn(N,S), not A = resetButton(N).
+fire(do(A,S)) :- A = startFire ; not A = endFire, fire(S).
+fan(do(A,S)) :- A = toggleFan, not fan(S) ; not A = toggleFan, fan(S).
+atFloor(N,do(A,S)) :- A = goDown, atFloor(M,S), N is M - 1 ;
+                      A = goUp, atFloor(M,S), N is M + 1 ;
+                      not A = goDown, not A = goUp, atFloor(N,S).
+alarmOn(do(A,S)) :- A = ringAlarm ; not A = resetAlarm, alarmOn(S).
+temp(T,do(A,S)) :- A = changeTemp, temp(T1,S), (not fan(S), T is T1 + 1 ;
+                                                fan(S), T is T1 - 1) ;
+                   not A = changeTemp, temp(T,S).
+% Abbreviations
+
+tooHot(S) :- temp(T,S), T > 3.
+tooCold(S) :- temp(T,S), T < -3.
+aboveFloor(N,S) :- atFloor(M,S), N < M.
+
+% Initial Situation.
+
+atFloor(1,s0).  temp(0,s0).  topFloor(6).  firstFloor(1).
+
+% Restore suppressed situation arguments.
+
+restoreSitArg(tooCold,S,tooCold(S)). restoreSitArg(fire,S,fire(S)).
+restoreSitArg(buttonOn(N),S,buttonOn(N,S)). restoreSitArg(fan,S,fan(S)).
+restoreSitArg(tooHot,S,tooHot(S)).
+restoreSitArg(atFloor(N),S,atFloor(N,S)).
+restoreSitArg(alarmOn,S,alarmOn(S)). restoreSitArg(temp(T),S,temp(T,S)).
+restoreSitArg(aboveFloor(N),S,aboveFloor(N,S)).
+restoreSitArg(requestExogenousAction(E),S,requestExogenousAction(E,S)).
+
+elevator :- doR(control,rules,s0,S), prettyPrintSituation(S).
+
+prettyPrintSituation(S) :- makeActionList(S,Alist), nl,
+                           write(Alist), nl.
+
+makeActionList(s0,[]).
+makeActionList(do(A,S),L) :- makeActionList(S,L1), append(L1,[A],L).

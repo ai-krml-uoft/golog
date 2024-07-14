@@ -1,0 +1,67 @@
+
+
+     %   Bad Situations for the OCTOPUS Blocks World
+
+/*  Canonical ordering on robot hand use: When a free hand is
+    needed, choose the least. This prevents plans that are
+    permutations of one another wrt hands being used.  */
+
+badSituation(do(startMove(H,X,Y,T,T1),S)) :- not leastAvailableHand(H,S).
+badSituation(do(startMoveToTable(H,X,T,T1),S)) :-
+                                  not leastAvailableHand(H,S).
+
+leastAvailableHand(H,S) :- not handInUse(H,S),
+                           not (hand(H1), H1 < H, not handInUse(H1,S)).
+
+/*  Eliminate permutations of actions whose start times are the same.
+    When two identical action types occur at the same times, choose
+    the action that moves the lexicographically least block.  */
+
+badSituation(do(A,do(B,S))) :- precedes(A,B),
+                               sameOccurrenceTimes(A,B),
+                               poss(A,S), poss(B,do(A,S)).
+
+precedes(endMove(H1,X1,Y1,T1,T2),
+         startMove(H2,X2,Y2,T3,T4)).
+precedes(endMove(H1,X1,Y,T1,T2),
+         startMoveToTable(H2,X2,T3,T4)).
+precedes(endMoveToTable(H1,X1,T1,T2),
+         startMove(H2,X2,Y,T3,T4)).
+precedes(endMoveToTable(H1,X1,T1,T2),
+         startMoveToTable(H2,X2,T3,T4)).
+precedes(startMove(H1,X1,Y,T1,T2),
+         startMoveToTable(H2,X2,T3,T4)).
+precedes(endMoveToTable(H2,X2,T3,T4),
+         endMove(H1,X1,Y,T1,T2)).
+precedes(endMoveToTable(H1,X1,T1,T2),
+         endMoveToTable(H2,X2,T3,T4)) :- X1 @< X2.
+precedes(startMove(H1,X1,Y1,T1,T2),
+         startMove(H2,X2,Y2,T3,T4)) :- X1 @< X2.
+precedes(endMove(H1,X1,Y1,T1,T2),
+         endMove(H2,X2,Y2,T3,T4)) :- X1 @< X2.
+
+sameOccurrenceTimes(A,B) :- time(A,T), time(B,T).
+
+%  Don't create a bad tower by a move action.
+
+badSituation(do(startMove(H,X,Y,T,T1),S)) :-
+                  not goodTower(X,do(endMove(H,X,Y,T,T1),
+                                     do(startMove(H,X,Y,T,T1),S))).
+
+%  Don't move anything from a good tower to the table.
+
+badSituation(do(startMoveToTable(H,X,T,T1),S)) :- goodTower(X,S).
+
+/*  Opportunistic rule: If an action can create a good tower, don't
+    do a bad-tower-creating moveToTable action.  */
+
+badSituation(do(startMoveToTable(H,X,T,T1),S)) :-
+           not goodTower(X, do(endMoveToTable(H,X,T,T1),
+                               do(startMoveToTable(H,X,T,T1),S))),
+           existsActionThatCreatesGoodTower(S).
+
+existsActionThatCreatesGoodTower(S) :-
+  (A = startMove(H,Y,Z,T,T1), B = endMove(H,Y,Z,T,T1) ;
+   A = startMoveToTable(H,Y,T,T1), B = endMoveToTable(H,Y,T,T1)),
+  poss(A,S), poss(B,do(A,S)), goodTower(Y,do(B,do(A,S))).
+

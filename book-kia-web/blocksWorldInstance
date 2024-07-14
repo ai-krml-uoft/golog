@@ -1,0 +1,38 @@
+
+          %  A Blocks World Problem
+
+/* Initial Situation   u
+                       a
+                       b   v
+                       c   e   w
+                       d   f   g                     */
+
+ontable(d,s0).  ontable(f,s0).  ontable(g,s0).  on(u,a,s0).
+on(a,b,s0).  on(b,c,s0).  on(c,d,s0).  on(v,e,s0).  on(e,f,s0).
+on(w,g,s0).  clear(u,s0).  clear(v,s0).  clear(w,s0).
+
+/* Goal                u
+                       v
+                       w
+                       d
+                       c   g
+                       b   f
+                       a   e                         */
+
+goal(S) :- ontable(a,S), ontable(e,S), on(u,v,S), on(v,w,S),
+           on(w,d,S), on(d,c,S), on(c,b,S), on(b,a,S),
+           on(g,f,S), on(f,e,S), clear(u,S), clear(g,S).
+
+%  Good towers.
+
+goodTower(a,S) :- ontable(a,S).
+goodTower(b,S) :- on(b,a,S), goodTower(a,S).
+goodTower(c,S) :- on(c,b,S), goodTower(b,S).
+goodTower(d,S) :- on(d,c,S), goodTower(c,S).
+goodTower(w,S) :- on(w,d,S), goodTower(d,S).
+goodTower(v,S) :- on(v,w,S), goodTower(w,S).
+goodTower(u,S) :- on(u,v,S), goodTower(v,S).
+
+goodTower(e,S) :- ontable(e,S).
+goodTower(f,S) :- on(f,e,S), goodTower(e,S).
+goodTower(g,S) :- on(g,f,S), goodTower(f,S).

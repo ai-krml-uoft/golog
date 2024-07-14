@@ -1,0 +1,13 @@
+
+
+%  Modifications to probF to Accommodate Uncertainty in the Initial Situation.
+
+probF(F,Prog,Prob) :- findall(P,
+                              S0^S^P0^Pr^(init(S0), initProb(S0,P0),
+                                          stDo(Prog : nil,Pr,S0,S),
+                                          once(holds(F,S)), P is Pr * P0),
+                              PS),
+                      addNumbers(PS,Prob).
+
+addNumbers([],0.0).
+addNumbers([N | Ns],Sum) :- addNumbers(Ns,Sum1), Sum is Sum1 + N.

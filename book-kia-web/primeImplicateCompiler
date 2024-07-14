@@ -1,0 +1,138 @@
+
+               %  A program for Generating Prime Implicates.
+
+:- op(900,xfy,==>).  % Simplification Rules. 
+:- dynamic(clause/2).
+
+compile :- initializeCompileCPU, clausifyAxioms,
+           reportClausifyStats, resolveAll(0), reportPrimeImpStats.
+
+clausifyAxioms :- axiom(W), processQuantifiers(W,W1),
+                  simplify(W1,Simp), clausalForm(Simp,Clauses),
+                  assertClauses(Clauses,0), fail.
+clausifyAxioms.
+
+processQuantifiers(W1 & W2,I1 & I2) :- processQuantifiers(W1,I1),
+                                       processQuantifiers(W2,I2).
+processQuantifiers(W1 v W2,I1 v I2) :- processQuantifiers(W1,I1),
+                                       processQuantifiers(W2,I2).
+processQuantifiers(W1 => W2,I) :- processQuantifiers(-W1 v W2,I).
+processQuantifiers(W1 <=> W2,I) :-
+                     processQuantifiers((W1 => W2) & (W2 => W1),I).
+processQuantifiers(-W,-I) :- processQuantifiers(W,I).
+processQuantifiers(some([X,T],W),I) :- processQuantifiers(-all([X,T],-W),I).
+processQuantifiers(all([X,T],W),I) :- sub(X,var(X),W,WR),
+          /* The substitution predicate of the GOLOG interpreter. Here, we
+             rename each quantified variable X by var(X). This prevents any
+             possible clash between variable and domain element names.  */
+         processQuantifiers(WR,I1),
+         domain(T,D), eliminateUniversal(I1,var(X),D,I).
+processQuantifiers(A,A) :- isAtom(A).
+
+eliminateUniversal(W,X,[E],I) :- sub(X,E,W,I). 
+eliminateUniversal(W,X,[E1,E2 | R],I1 & I2) :- sub(X,E1,W,I1),
+                                  eliminateUniversal(W,X,[E2 | R],I2).
+
+clausalForm(L,[[L]]) :- isLiteral(L).
+clausalForm(W1 & W2,Clauses) :- clausalForm(W1,C1), clausalForm(W2,C2),
+                                union(C1,C2,Clauses).
+clausalForm(-(-W),Clauses) :- clausalForm(W,Clauses).
+clausalForm(W1 v W2,Clauses) :- clausalForm(W1,C1), clausalForm(W2,C2),
+                                pairwiseUnion(C1,C2,Clauses).
+clausalForm(-(W1 & W2),Clauses) :- clausalForm(-W1 v -W2,Clauses).
+clausalForm(-(W1 v W2),Clauses) :- clausalForm(-W1 & -W2,Clauses).
+
+pairwiseUnion([],Clauses,[]).
+pairwiseUnion(Clauses,[],[]).
+pairwiseUnion([C1 | R1],[C2 | R2],[C | Clauses]) :- union(C1,C2,C),
+         pairwiseUnion([C1],R2,P1), pairwiseUnion(R1,[C2 | R2],P2),
+         union(P1,P2,Clauses).
+
+isLiteral(A) :- isAtom(A).
+isLiteral(-A) :- isAtom(A).
+
+assertClauses([],N).
+assertClauses([C | R],N) :- assertClause(C,N), assertClauses(R,N).
+
+assertClause(C,N) :- tautology(C), !.
+assertClause(C,N) :- subsumed(C), !.
+assertClause(C,N) :- retractSubsumedClauses(C), assert(clause(C,N)).
+
+retractSubsumedClauses(C) :- clause(K,N), subsumes(C,K),
+                             retract(clause(K,N)), fail.
+retractSubsumedClauses(C).
+
+subsumes([],C).
+subsumes([L | R],C) :- member(L,C), subsumes(R,C).
+
+% Subsumption is expensive, so optimize a little.  
+
+subsumed([L]) :- clause([L],N).
+subsumed([L1,L2 | C]) :- clause(K,N), subsumes(K,[L1,L2 | C]).
+
+tautology([true]).
+tautology([L1,L2 | C]) :- member(A,[L1,L2 | C]), isAtom(A),
+                          member(-A,[L1,L2 | C]).
+
+resolveAll(N) :- unitResolve(N), nonUnitResolve(N).
+resolveAll(N) :- N1 is N + 1,
+        % Was a new resolvent produced at the previous level? 
+               clause(C,N1), resolveAll(N1).
+resolveAll(N).
+
+unitResolve(N) :- N1 is N + 1, 
+          (clause([L],N), clause(C,J) ; 
+           clause([L],J),  J < N, clause(C,N)),
+          unitResolvent([L],C,R), retractSubsumedClauses(R),
+          assert(clause(R,N1)), fail.
+unitResolve(N).
+
+unitResolvent([L],C,R) :- complement(L,N), member(N,C),
+                          delete(N,C,R).
+
+nonUnitResolve(N) :- N1 is N + 1,
+                     clause([L1,L2 | R],N), clause([F1,F2 | T],J),
+                     resolvent([L1,L2 | R],[F1,F2 | T],C),
+                     assertClause(C,N1), fail.
+
+resolvent(C1,C2,C) :- member(L1,C1), complement(L1,L2),
+                      member(L2,C2), delete(L1,C1,K1),
+                      delete(L2,C2,K2), union(K1,K2,C).
+
+complement(A,-A) :- not A = -W.
+complement(-A,A).
+
+initializeCompileCPU :- cputime(T), setval(compileCPUtime,T).
+
+reportClausifyStats :- nl, 
+         write('Clausal form completed.   CPU time (sec): '),
+         getval(compileCPUtime,T1), cputime(T), T2 is T - T1,
+         setval(clausifyTime,T2), write(T2), countClauses(N),
+         write('  Clauses: '), write(N), nl.
+ 
+reportPrimeImpStats :- nl, 
+         write('Database compiled.   CPU time (sec): '), cputime(T),
+         getval(clausifyTime,T1), T2 is T - T1, write(T2),
+         countClauses(N), write('   Prime implicates: '), write(N), nl.
+
+countClauses(N) :- setval(clauseCount,0), clause(C,J),
+                   incval(clauseCount), fail.
+countClauses(N) :- getval(clauseCount,N).
+
+simplify(W1 & W2,S) :- simplify(W1,S1), simplify(W2,S2),
+                       simplify1(S1 & S2,S), !.
+simplify(W1 v W2,S) :- simplify(W1,S1), simplify(W2,S2),
+                       simplify1(S1 v S2,S), !.
+simplify(-W,S) :- simplify(W,S1), simplify1(-S1,S), !.
+simplify(A,S) :- simplify1(A,S).
+
+simplify1(W,Simp) :- W ==> Simp, !.
+simplify1(W,W).
+
+%  Simplification Rules.
+
+true & P ==> P.         P & true ==> P.       false & P ==> false.
+P & false ==> false.    true v P ==> true.    P v true ==> true.
+false v P ==> P.        P v false ==> P.      -true ==> false.
+-false ==> true.        X = X ==> true.
+X = Y ==> false :- not X = Y.

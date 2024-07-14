@@ -1,0 +1,91 @@
+
+%  How to Move All the Blocks to the Table: Prolog Implementation.
+
+%  The Golog Program.
+
+proc(allToTable(B),
+    ?(knows(all([x,block],ontable(x)))) #
+    pi([x,block],
+          ?(-member(x,B)) :
+          if(-kWhether(clear(x)), senseClear(x)) :
+          if(knows(-clear(x)), allToTable([x | B]),
+     /* ELSE */ if(-kWhether(ontable(x)), senseOnTable(x)) :
+                if(knows(ontable(x)), allToTable([x | B]),
+             /* ELSE */ moveToTable(x) :
+                        ?(report(moveToTable(x))) :
+                        allToTable([]))))).
+
+report(A) :- nl, write('Performing '), write(A), write('.'), nl.
+
+run :- do(allToTable([]),s0,S), nl, write('Final situation: '),
+       prettyPrintSituation(S).
+
+prettyPrintSituation(S) :- makeActionList(S,Alist), nl,
+                           write(Alist), nl.
+
+makeActionList(s0,[]).
+makeActionList(do(A,S), L) :- makeActionList(S,L1),
+                              append(L1, [A], L).
+
+              %  The Blocks World Clauses.
+
+%  Initial Situation. Nothing else is known to the agent.
+
+axiom(all([x,block], all([y,block], on(x,y,s0) => -on(y,x,s0)))).
+axiom(all([x,block], all([y,block], all([z,block],
+          on(y,x,s0) & on(z,x,s0) => y = z)))).
+axiom(all([x,block], all([y,block], all([z,block],
+          on(x,y,s0) & on(x,z,s0) => y = z)))).
+
+%  clear and ontable defined in the initial situation.
+
+clear(X,s0) <=> all([y,block],-on(y,X,s0)).
+ontable(X,s0) <=> all([y,block],-on(X,y,s0)).
+
+%  Preconditions for sense actions.
+
+poss(senseClear(X),S).  poss(senseOnTable(X),S).
+
+%  Misc declarations.
+
+senseAction(senseClear(X),clear(X)).
+senseAction(senseOnTable(X),ontable(X)).
+
+domain(block,[a,b,c,d]).   % A four block domain.
+
+%  Action preconditions.  
+
+poss(move(X,Y),S) :- findall(Z, (domain(block,D), member(Z,D),
+                                prove(clear(Z,S))),L),
+                     member(X,L), member(Y,L), not X = Y.
+poss(moveToTable(X),S) :- domain(block,D), member(X,D),
+                          prove(clear(X,S) & -ontable(X,S)).
+poss(senseClear(X),S).
+poss(senseOnTable(X),S).
+
+%  Successor state axioms for the regression theorem prover.  
+
+clear(X,do(move(U,V),S)) <=> on(U,X,S) v -(X = V) & clear(X,S).
+clear(X,do(moveToTable(U),S)) <=> on(U,X,S) v clear(X,S).
+clear(X,do(senseClear(U),S)) <=> clear(X,S).
+clear(X,do(senseOnTable(U),S)) <=> clear(X,S).
+
+on(X,Y,do(move(U,V),S)) <=> X = U & Y = V v -(X = U) & on(X,Y,S).
+on(X,Y,do(moveToTable(U),S)) <=> -(X = U) & on(X,Y,S).
+on(X,Y,do(senseClear(U),S)) <=> on(X,Y,S).
+on(X,Y,do(senseOnTable(U),S)) <=> on(X,Y,S).
+
+ontable(X,do(move(U,V),S)) <=> -(X = U) & ontable(X,S).
+ontable(X,do(moveToTable(U),S)) <=> X = U v ontable(X,S).
+ontable(X,do(senseClear(U),S)) <=> ontable(X,S).
+ontable(X,do(senseOnTable(U),S)) <=> ontable(X,S).
+
+primitive_action(move(X,Y)).   primitive_action(moveToTable(X)).
+
+senseAction(senseClear(X),clear(X)).
+senseAction(senseOnTable(X),ontable(X)).
+
+restoreSitArg(clear(X),S,clear(X,S)).
+restoreSitArg(ontable(X),S,ontable(X,S)).
+restoreSitArg(on(X,Y),S,on(X,Y,S)).
+

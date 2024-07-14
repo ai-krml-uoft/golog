@@ -1,0 +1,47 @@
+
+% A Generic Golog Interpreter for Knowledge-Based Programs with Sense Actions
+%                   Using Provability to Implement Knowledge
+
+
+/* The clauses for do remain as for standard Golog, except that
+   do(pi(V,E),S,S1) is modified to associate, with variable V, a
+   type T with finite domain, and an extra clause is added to treat
+   sense actions by interactively asking the user for the outcome of
+   the action, and updating the initial database with the regression
+   of this outcome. This clause for sense actions appeals to a user-
+   provided declaration senseAction(A,SensedOutcome), meaning that A
+   is a sense action, and SensedOutcome is the formula whose truth
+   value the action A is designed to determine.  */
+
+do(pi([V,T],E),S,S1) :- domain(T,D), member(M,D), sub(V,M,E,E1),
+                        do(E1,S,S1).
+
+/* In the following, regress is exactly as in the prime implicate-
+   based open world planning program in the planning chapter.  */
+
+do(A,S,do(A,S)) :- senseAction(A,SensedOutcome), poss(A,S),
+                   queryUser(SensedOutcome,YN),
+                   restoreSitArgThroughout(SensedOutcome,S,Outcome),
+                   regress(Outcome,R),
+                   (YN = y, updateInitDatabase(R) ;
+                    YN = n, updateInitDatabase(-R)).
+
+queryUser(SensedOutcome,YN) :- nl, write("Is "),
+       write(SensedOutcome), write(" true now? y or n."), read(YN).
+
+/* The following clauses are added to those for holds in the
+   standard Golog interpreter.  */
+
+holds(kWhether(W),S) :- holds(knows(W),S), ! ; holds(knows(-W),S)).
+holds(knows(W),S) :- restoreSitArgThroughout(W,S,F), prove(F).
+
+/* Finally, replace the last holds clause in the standard
+   Golog interpreter by the following:  */
+
+holds(A,S) :- restoreSitArg(A,S,F), F ;
+              not restoreSitArg(A,S,F), isAtom(A),
+              not (A = knows(W) ; A = kWhether(W)), A.
+
+/* restoreSitArgThroughout(W,S,F) means F is the result of restoring
+   the situation argument S into every fluent mentioned by the form-
+   ula W. Its clauses are straightforward, and we omit them.  */

@@ -1,0 +1,161 @@
+
+   %    Clauses for the Delivery Robot with Exogenous Events
+
+% Action preconditions.
+
+poss(puMail,S) :- loc(mr,S), mailPresent(P,S).
+poss(giveMail(P),S) :- carryingMail(P,S), loc(office(P),S).
+poss(giveCoffeeS(P),S) :- coffeeRequested(P,S), loc(office(P),S).
+poss(giveCoffeeF(P),S) :- coffeeRequested(P,S), loc(office(P),S).
+poss(go(L),S) :- not going(L1,S), not L = blackHole, 
+                 loc(L1,S), not L1 = blackHole, not L1 = L.
+poss(endUpAt(L),S) :- going(L,S).
+poss(getLost(L),S) :- going(L,S).
+
+poss(exo(M,C,Sm),S) :- findall(P,person(P),Ps),
+                       findall(P,(member(P,Ps), not coffeeRequested(P,S)),Cs),
+             findall([M,C,Sm], P^Prm^Prc^Prob^
+                   (subset(M,Ps), 
+    % Filter out those sets of mail arrivals with very small probabilies.
+                    exoProbMailArrives(M,S,Prm), Prm > 0.0001,
+                    subset(C,Cs),
+    % Filter out those sets of mail arrivals and coffee requests with
+    % very small combined probabilities.
+                    exoProbRequestCoffee(C,S,Prc), Prob is Prm * Prc,
+                    Prob > 0.0001,
+                    (Sm = stealMail, once(carryingMail(P,S)) ;
+                     Sm = noStealMail)),
+                   Args),
+             member([M,C,Sm],Args).
+
+% Successor State Axioms
+
+going(L,do(A,S)) :- A = go(L) ; going(L,S), not A = endUpAt(L), 
+                                not A = getLost(L).
+mailPresent(P,do(A,S)) :- A = exo(M,_,_), member(P,M) ; 
+                          not A = puMail, mailPresent(P,S). 
+coffeeRequested(P,do(A,S)) :- A = exo(_,C,_), member(P,C) ;
+                              coffeeRequested(P,S), not A = giveCoffeeS(P).
+carryingMail(P,do(A,S)) :- A = puMail, mailPresent(P,S) ; 
+                           carryingMail(P,S), not A = giveMail(P),
+                           not A = exo(_,_,stealMail).
+loc(L,do(A,S)) :- A = endUpAt(L) ; A = getLost(L1), L = blackHole ;
+                  loc(blackHole,S), L = blackHole ;
+                  loc(L,S), not L = blackHole, not A = getLost(L1),
+                  not (A = endUpAt(L1), not L = L1).
+
+choice(giveCoffee(P),C) :- C = giveCoffeeS(P) ; C = giveCoffeeF(P).
+choice(go(L),C) :- C = go(L).
+choice(puMail,C) :- C = puMail.
+choice(giveMail(P),C) :- C = giveMail(P).
+
+% Probabilities.
+
+prob0(giveCoffeeS(P),giveCoffee(P),S,Pr) :- Pr = 0.95 .
+prob0(giveCoffeeF(P),giveCoffee(P),S,Pr) :- Pr = 0.05 .
+prob0(giveMail(P),giveMail(P),S,Pr) :- Pr = 1.0 .
+prob0(puMail,puMail,S,Pr) :- Pr = 1.0 .
+prob0(go(L),go(L),S,Pr) :- Pr = 1.0 .
+
+exoProb(endUpAt(L),S,Pr) :- loc(L0,S), dist(L0,L,D),
+                                Pr is 1000 / (1000 + D).
+exoProb(getLost(L),S,Pr) :- loc(L0,S), dist(L0,L,D),
+                                Pr is D / (1000 + D).
+exoProb(exo(M,C,SM),S,Pr) :- exoProbMailArrives(M,S,PM),
+                             exoProbRequestCoffee(C,S,PC),
+                             exoProbMailStolen(SM,S,PS),
+                             Pr is PM * PC * PS. 
+
+exoProbMailStolen(SM,S,Pr) :- carryingMail(P,S), going(L,S),
+                              loc(L0,S), dist(L0,L,D),
+                              (SM = stealMail, Pr is D / (5000 + D) ;
+                               SM = noStealMail, Pr is 5000 / (5000 + D)) ;
+                              not (carryingMail(P,S), going(L,S)),
+                              (SM = stealMail, Pr is 0.0 ;
+                               SM = noStealMail, Pr is 1.0).
+
+exoProbMailArrives(M,S,Pr) :- 
+              % First compute the probability, Pr1, that mail arrives for
+              % all people in M.
+
+              findall(Prob, 
+                      P^(member(P,M), probMailArrives(P,S,Prob)),
+                      ProbList1),
+              multiplyNumbers(ProbList1,Pr1),
+
+              % Next, compute the probability, Pr2, that mail doesn't 
+              % arrive for those people not in M.
+
+              findall(P,person(P),Ps),
+              findall(Prob,
+                      P^ProbM^(member(P,Ps), not member(P,M),
+                               probMailArrives(P,S,ProbM), Prob is 1 - ProbM),
+                      ProbList2),
+              multiplyNumbers(ProbList2,Pr2),
+              Pr is Pr1 * Pr2.
+
+probMailArrives(P,S,Pr) :- Pr = 0.005 . 
+
+exoProbRequestCoffee(C,S,Pr) :-
+              % First compute the probability, Pr1, that all people
+              % in C issue a request for coffee.
+ 
+              findall(Prob,
+                      P^(member(P,C), probRequestsCoffee(P,S,Prob)),
+                      ProbList1),
+              multiplyNumbers(ProbList1,Pr1),
+ 
+              % Next, compute the probability, Pr2, that those people
+              % not in C do not request coffee.
+ 
+              findall(P,person(P),Ps),
+              findall(Prob,
+                      P^ProbC^(member(P,Ps), not member(P,C),
+                               probRequestsCoffee(P,S,ProbC), 
+                               Prob is 1 - ProbC),
+                      ProbList2),
+              multiplyNumbers(ProbList2,Pr2),
+              Pr is Pr1 * Pr2.
+
+probRequestsCoffee(P,S,Pr) :- coffeeRequested(P,S), Pr = 0.0 ;
+                              not coffeeRequested(P,S), Pr = 0.01 .
+
+multiplyNumbers([],1.0).
+multiplyNumbers([P | Ps],Prod) :- multiplyNumbers(Ps,Pr), Prod is P * Pr.
+
+% Initial situation.
+
+person(P) :- P = pat ; P = sue ; P = alf ; P = sam ; P = ann ; P = bob.
+loc(mr,s0).
+carryingMail(P,s0) :- P = pat ; P = sue ; P = alf.
+coffeeRequested(P,s0) :- P = sue ; P = alf.
+
+% The offices are strung out along a single line. mr is on the left.
+% office(pat) is to its immediate right at a distance of 10. office(sue) is
+% to the immediate right of office(pat) at a distance of 10. Etc.
+ 
+distances([mr,10,office(pat),10,office(sue),10,office(ann),10,
+               office(bob),10,office(sam),10,office(alf)]).
+
+dist(X,Y,D) :- distances(A), (dist0(X,Y,A,D), ! ; dist0(Y,X,A,D)).
+
+dist0(X,X,A,0). 
+dist0(X,Y,A,D) :- tail([X,DX | [Z | L]],A), 
+                  dist0(Z,Y,[Z | L],DR), D is DX + DR.
+tail(L,L).
+tail(L,[X | Xs]) :- tail(L,Xs).
+
+restoreSitArg(coffeeRequested(P),S,coffeeRequested(P,S)).
+restoreSitArg(mailPresent(P),S,mailPresent(P,S)).
+restoreSitArg(loc(L),S,loc(L,S)).
+restoreSitArg(carryingMail(P),S,carryingMail(P,S)).
+restoreSitArg(going(L),S,going(L,S)).
+
+primitive_action(endUpAt(_)).  primitive_action(getLost(_)).
+primitive_action(exo(_,_,_)).
+
+proc(exoProgram,
+      ?(-some(l,going(l))) #
+      pi(l,?(going(l)) : 
+           pi(m, pi(c, pi(sm, exo(m,c,sm)))) :
+           (endUpAt(l) # getLost(l)))).

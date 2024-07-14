@@ -1,0 +1,29 @@
+
+
+ % A Regression Theorem-Prover for an Initial Situation of Prime Implicates
+
+prove(W):- processQuantifiers(W,I), simplify(I,Simp), regress(Simp,R),
+           clausalForm(R,Clauses), databaseEntails(Clauses).
+
+databaseEntails([]).
+databaseEntails( [C | R]) :- (tautology(C), ! ; subsumed(C)),
+                             databaseEntails(R).
+
+regress(P & Q, R) :- regress(P,R1),
+                     (R1 = false, R = false, ! ;
+                      regress(Q,R2), simplify(R1 & R2,R)).
+regress(P v Q, R) :- regress(P,R1),
+                     (R1 = true, R = true, ! ;
+                      regress(Q,R2), simplify(R1 v R2,R)).
+regress(-P,R) :- regress(P,R1), simplify(-R1,R).
+regress(A,R) :- isAtom(A), A <=> W,    /* A is a defined atom. Retrieve
+                                          and regress its definition. */
+                processQuantifiers(W,I), simplify(I,S), regress(S,R).
+regress(A,R) :- isAtom(A),
+                not A <=> W,   /* A is an atom, but it has no definition,
+                                  so the regression is finished. */
+                (A = false, R = false, ! ;
+                 databaseEntails([[A]]), R = true, ! ;
+                 databaseEntails([[-A]]), R = false, ! ;
+                 R = A).
+

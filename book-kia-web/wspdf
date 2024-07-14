@@ -1,0 +1,35 @@
+    %  Implementation of a depth-first planner.
+
+proc(wspdf(N),
+     ?(initializeSitCount) : ?(initializeCPU) : plans(N)).
+
+proc(plans(N),   
+     ?(goal) : ?(info) : ?(prettyPrintSituation) #
+     ?(N > 0) : pi(a,?(primitive_action(a)) : a) : 
+     ?(-badSituation) : ?(incrementSitCount) : 
+     pi(n1, ?(n1 is N - 1) : plans(n1))).
+ 
+info :- nl, cputime(T), write('  CPU time (sec): '), 
+     getval(cpu,T1), T2 is T - T1, write(T2), getval(sitCount,C), 
+     write('  Good situations: '), write(C), nl.
+ 
+initializeSitCount :- setval(sitCount,0).
+
+initializeCPU :- cputime(T), setval(cpu,T).
+
+incrementSitCount :- incval(sitCount).
+
+prettyPrintSituation(S) :- makeActionList(S,Alist), nl,
+                           write(Alist), nl.
+ 
+makeActionList(s0,[]).
+makeActionList(do(A,S), L) :- makeActionList(S,L1),
+                              append(L1, [A], L).
+ 
+restoreSitArg(prettyPrintSituation,S,prettyPrintSituation(S)).
+restoreSitArg(badSituation,S,badSituation(S)).
+restoreSitArg(goal,S,goal(S)).
+ 
+plandf(N) :- do(wspdf(N),s0,S), askForMore.
+
+askForMore :- write('More? '), read(n).
