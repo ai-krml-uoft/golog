@@ -94,8 +94,7 @@ is_complex(all(_V, _W)).
 % restore S as last argument of term A
 % e.g., if A = poss(Action), then A2 = poss(Action, S)
 restore_situation(A, S, A2) :-
-  (is_atom(A) ; A = poss(_, _)),
-  A =.. [F|L], append(L, [S], L2), A2 =.. [F|L2].
+  is_atom(A), A =.. [F|L], append(L, [S], L2), A2 =.. [F|L2].
 
 % is the situation executable -- all actions have poss true
 executable(s0).
