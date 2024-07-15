@@ -11,7 +11,8 @@
 
 :- multifile
   restore_situation/3,
-  primitive_action/1.
+  primitive_action/1,
+  set_action_temporal_constraint/2.
 
 /*-------------------------------------------------------------------------
   PREDICATE: Definition of operators
@@ -30,16 +31,19 @@
   DESCRIPTION: Do Macro. Do succedes if S2 is a valid final situation after
 		executing P from situation S
 --------------------------------------------------------------------------*/
-do(E1 : E2, S, S1) :- do(E1, S, S2), do(E2, S2, S1).
-do(?(P), S, S) :- 	holds(P, S).
-do(E1 # E2, S, S1) :- do(E1, S, S1) ; do(E2, S, S1).
-do(if(P, E1, E2), S, S1) :- do(( ?(P):E1 ) # ( ?(-P):E2) , S, S1).
-do(star(E), S, S1) :- S1=S ; do(E : star(E), S, S1).
-do(while(P, E), S, S1) :- do(star(?(P):E) : ?(-P), S, S1).
-do(pi(V, E), S, S1) :- sub(V, _, E, E1), do(E1, S, S1).
-do(E, S, S1) :- 	proc(E, E1), do(E1, S, S1).
-do(E, S, do(E, S)) :- primitive_action(E), poss(E, S).
+do(E1 : E2, S, S1) :- !, do(E1, S, S2), do(E2, S2, S1).
+do(?(P), S, S) :- !, holds(P, S).
+do(E1 # E2, S, S1) :- !, (do(E1, S, S1) ; do(E2, S, S1)).
+do(if(P, E1, E2), S, S1) :- !, do(( ?(P):E1 ) # ( ?(-P):E2) , S, S1).
+do(star(E), S, S1) :- !, (S1=S ; do(E : star(E), S, S1)).
+do(while(P, E), S, S1) :- !, do(star(?(P):E) : ?(-P), S, S1).
+do(pi(V, E), S, S1) :- !, sub(V, _, E, E1), do(E1, S, S1).
+do(E, S, S1) :- proc(E, E1), !, do(E1, S, S1).
+do(E, S, do(E, S)) :- primitive_action(E), poss(E, S),
+  (set_action_temporal_constraint(E, S) -> true ; true).
 
+% dummy definition for plain golog
+set_action_temporal_constraint(_, _) :- fail.
 
 /*-------------------------------------------------------------------------
   PREDICATE: sub(Name, New, Term1, Term2)
@@ -60,20 +64,20 @@ sub_list(X1, X2, [T1|L1], [T2|L2]) :-
   PREDICATE: holds(Cond, S)
   DESCRIPTION:  The revised Lloyd-Topor transformation on test conditions.
 --------------------------------------------------------------------------*/
-holds(P & Q, S) :- holds(P, S), holds(Q, S).
-holds(P v Q, S) :- holds(P, S); holds(Q, S).
-holds(P => Q, S) :- holds(-P v Q, S).
-holds(P <=> Q, S) :- holds((P => Q) & (Q => P), S).
-holds(-(-P), S) :- holds(P, S).
-holds(-(P v Q), S) :- holds(-P & -Q, S).
-holds(-(P & Q), S) :- holds(-P v -Q, S).
-holds(-(P => Q), S) :- holds(-(-P v Q), S).
-holds(-(P <=> Q), S) :- holds(-((P => Q) & (Q => P)), S).
-holds(-all(V, P), S) :- holds(some(V, -P), S).
-holds(-some(V, P), S) :- \+ holds(some(V, P), S).
-holds(-P, S) :- 	is_atom(P), \+ holds(P, S).
-holds(all(V, P), S) :- holds(-some(V, -P), S).
-holds(some(V, P), S) :- sub(V, _, P, P1), holds(P1, S).
+holds(P & Q, S) :- !, holds(P, S), holds(Q, S).
+holds(P v Q, S) :- !, holds(P, S); holds(Q, S).
+holds(P => Q, S) :- !, holds(-P v Q, S).
+holds(P <=> Q, S) :- !, holds((P => Q) & (Q => P), S).
+holds(-(-P), S) :- !, holds(P, S).
+holds(-(P v Q), S) :- !, holds(-P & -Q, S).
+holds(-(P & Q), S) :- !, holds(-P v -Q, S).
+holds(-(P => Q), S) :- !, holds(-(-P v Q), S).
+holds(-(P <=> Q), S) :- !, holds(-((P => Q) & (Q => P)), S).
+holds(-all(V, P), S) :- !, holds(some(V, -P), S).
+holds(-some(V, P), S) :- !, \+ holds(some(V, P), S).
+holds(-P, S) :- 	!, is_atom(P), \+ holds(P, S).
+holds(all(V, P), S) :- !, holds(-some(V, -P), S).
+holds(some(V, P), S) :- !, sub(V, _, P, P1), holds(P1, S).
 
 
 holds(A, S) :- restore_situation(A, S, F), !, F.

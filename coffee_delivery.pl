@@ -35,10 +35,10 @@ holdingCoffee(do(A, S)) :-
 % Initial Situation.
 robotLocation(cm, s0).
 start(s0, 0).
-wantsCoffee(sue, 140, 160).
-% wantsCoffee(bill, 100, 110).
-% wantsCoffee(joe, 90, 100).
-% wantsCoffee(mary, 130, 170).
+wantsCoffee(sue, 140, 160).   % wants coffee between 140 and 160
+wantsCoffee(bill, 100, 110).
+wantsCoffee(joe, 90, 100).
+wantsCoffee(mary, 130, 170).
 
 travelTime0(cm, office(sue), 15).
 travelTime0(cm, office(mary), 10).
@@ -72,7 +72,7 @@ primitive_action(endGo(_Loc1, _Loc2, _T)).
 chooseTimes(S)  :-
    collect_time_vars(S, T),
    setof(min(X), member(X, T), MinVars),
-   once(labeling(MinVars, T)).
+   labeling(MinVars, T).
 
 collect_time_vars(s0, []).
 collect_time_vars(do(A, S), [T|L]) :- time(A, T), collect_time_vars(S, L).
@@ -90,10 +90,15 @@ restore_situation(now(T), S, now(S, T)).
 proc(goFloor(N), ?(currentFloor(N)) # up(N) # down(N)).
 
 
+% Beginning at time T the robot serves coffee to everyone,
+% if possible. Else the program fails.
 proc(deliverCoffee(T),
   ?(some(t, now(t) & t #=< T)) :
+   % either everyone who wants coffee has been served or
+   % we serve one coffee and then keep serving coffees
   (?(all(p, all(t1, all(t2, wantsCoffee(p, t1, t2) => hasCoffee(p)))))
    #
+   ?(some(p, some(t1, some(t2, wantsCoffee(p, t1, t2) & -hasCoffee(p))))) :
    pi(rloc, ?(robotLocation(rloc)) :
             if(rloc = cm, /* THEN */ deliverOneCoffee(T),
                           /* ELSE */
@@ -136,10 +141,9 @@ proc(goBetween(Loc1, Loc2, Delta, T),
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % top-level procedure for coffee delivery.
 coffeeDelivery(T) :-
+   number(T),
    do(deliverCoffee(T), s0, S),
-   chooseTimes(S),
-   prettyPrintSituation(S),
-   askForMore.
-askForMore :- write('More? '), read(n).
+   once(chooseTimes(S)),
+   prettyPrintSituation(S).
 
 

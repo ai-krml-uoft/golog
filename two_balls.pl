@@ -85,7 +85,6 @@ poss(collide(B1, B2, T), S) :- vel(B1, V1, S), vel(B2, V2, S), \+ V1 = V2,
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % top-level application interface
 simulate(T) :- do(executable(T), s0, S),
-               prettyPrintSituation(S), askForMore.
-askForMore :- write('More (y/n)? '), read(n).
+               prettyPrintSituation(S).
 
 
