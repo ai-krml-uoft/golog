@@ -44,15 +44,16 @@ do(E, S, do(E, S)) :- primitive_action(E), poss(E, S).
 /*-------------------------------------------------------------------------
   PREDICATE: sub(Name, New, Term1, Term2)
   DESCRIPTION:  Term2 is Term1 with Name replaced by New
+      Term2 = Term1[Name/New]
 --------------------------------------------------------------------------*/
-sub(_, _, T1, T2) :- var(T1), T2 = T1.
-sub(X1, X2, T1, T2) :- \+ var(T1), T1 = X1, T2 = X2.
-sub(X1, X2, T1, T2) :- (\+ T1=X1), T1 =.. [F|L1], sub_list(X1, X2, L1, L2),
-			T2 =.. [F|L2].
+sub(_, _, T1, T2) :- var(T1), !, T2 = T1.
+sub(X1, X2, T1, T2) :- \+ var(T1), T1 == X1, !, T2 = X2.
+sub(X1, X2, T1, T2) :- T1 =.. [F|L1], sub_list(X1, X2, L1, L2), T2 =.. [F|L2].
 
 sub_list(_, _, [], []).
-sub_list(X1, X2, [T1|L1], [T2|L2]) :- sub(X1, X2, T1, T2),
-					sub_list(X1, X2, L1, L2).
+sub_list(X1, X2, [T1|L1], [T2|L2]) :-
+  sub(X1, X2, T1, T2),
+  sub_list(X1, X2, L1, L2).
 
 
 /*-------------------------------------------------------------------------
