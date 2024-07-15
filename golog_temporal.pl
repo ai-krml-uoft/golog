@@ -20,10 +20,10 @@
 :- ensure_loaded('golog.pl').
 
 
-do(E,S,do(E,S)) :-  % page 156
-  primitive_action(E), poss(E,S),
-  start(S,T1), time(E,T2), T1 #=< T2.
-do(C, S, do(C,S)) :-  % page 
+do(E, S, do(E, S)) :-  % page 156
+  primitive_action(E), poss(E, S),
+  start(S, T1), time(E, T2), T1 #=< T2.
+do(C, S, do(C, S)) :-  % page 
   concurrent_action(C), poss(C, S),
   start(S, T1), time(C, T2), T1 =< T2.
 
@@ -33,6 +33,7 @@ do(C, S, do(C,S)) :-  % page
 time([A | _], T) :- time(A, T).
 
 % The start time of situation do(C, S) is the time of C.
+start(do(A, _S), T) :- primitive_action(A), !, time(A, T).
 start(do(C, _S), T) :- concurrent_action(C), time(C, T).
 
 
